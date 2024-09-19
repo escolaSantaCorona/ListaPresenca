@@ -28,7 +28,7 @@ const formatDate = (dateString: string) => {
   return `${day}-${month}-${year}`;
 };
   // useForm with AttendanceData to type the form values
-  const { control, watch, handleSubmit, setValue } = useForm<AttendanceData>();  // Use AttendanceData type
+  const { control, watch, handleSubmit, setValue,reset } = useForm<AttendanceData>();  // Use AttendanceData type
   const [dates, setDates] = useState<string[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
 
@@ -57,22 +57,31 @@ const formatDate = (dateString: string) => {
     }
   }, [selectedClass, setValue]);
 
-  // Fetch students when date changes
-  useEffect(() => {
-    if (selectedClass && selectedDate) {
-      const fetchStudentsForClassAndDate = async () => {
-        try {
-          const response = await axios.get('/api/attendance', {
-            params: { className: selectedClass, date: selectedDate },
-          });
-          setStudents(response.data);  // Populate students array
-        } catch (error) {
-          console.error('Error fetching students:', error);
-        }
-      };
-      fetchStudentsForClassAndDate();
-    }
-  }, [selectedClass, selectedDate]);
+ // Fetch students when date changes
+// Fetch students when date changes
+useEffect(() => {
+  if (selectedClass && selectedDate) {
+    const fetchStudentsForClassAndDate = async () => {
+      try {
+        setStudents([]);  // Clear students state before fetching new data
+        const response = await axios.get('/api/attendance', {
+          params: { className: selectedClass, date: selectedDate },
+        });
+        setStudents(response.data);  // Populate students array
+        reset({
+          className: selectedClass,  // Preserve the selected class
+          date: selectedDate,        // Preserve the selected date
+          students: response.data.map((student: Student) => ({ attendanceValue: student.attendanceValue }))  // Update students data
+        });
+      } catch (error) {
+        console.error('Error fetching students:', error);
+      }
+    };
+    fetchStudentsForClassAndDate();
+  }
+}, [selectedClass, selectedDate, reset]);
+
+
 
   const onSubmit: SubmitHandler<AttendanceData> = async (data) => {
     try {
