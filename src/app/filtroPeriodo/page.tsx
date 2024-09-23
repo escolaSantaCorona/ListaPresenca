@@ -128,7 +128,7 @@ function AbsenceTable() {
             Relatório de Ausências
           </Typography>
           <Grid container spacing={2} alignItems="flex-end">
-           
+
             <Grid item xs={12} md={3}>
               <TextField
                 fullWidth
@@ -193,20 +193,52 @@ function AbsenceTable() {
           ) : (
             <>
               {/* Tabela de Ausências */}
-              <TableContainer sx={{ marginTop: '20px', maxHeight: 500 }}>
-                <Table stickyHeader>
+              <TableContainer sx={{ marginTop: '20px', maxHeight: 400 }}>
+                <Table stickyHeader aria-label="sticky table">
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ fontWeight: 'bold', backgroundColor: 'primary.light' }}>
+                      <TableCell
+                        sx={{
+                          fontWeight: 'bold',
+                          backgroundColor: 'primary.light',
+                          position: 'sticky',
+                          top: 0,
+                          zIndex: 1,
+                        }}
+                      >
                         Data
                       </TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', backgroundColor: 'primary.light' }}>
+                      <TableCell
+                        sx={{
+                          fontWeight: 'bold',
+                          backgroundColor: 'primary.light',
+                          position: 'sticky',
+                          top: 0,
+                          zIndex: 1,
+                        }}
+                      >
                         Turma
                       </TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', backgroundColor: 'primary.light' }}>
+                      <TableCell
+                        sx={{
+                          fontWeight: 'bold',
+                          backgroundColor: 'primary.light',
+                          position: 'sticky',
+                          top: 0,
+                          zIndex: 1,
+                        }}
+                      >
                         Nome do Aluno
                       </TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', backgroundColor: 'primary.light' }}>
+                      <TableCell
+                        sx={{
+                          fontWeight: 'bold',
+                          backgroundColor: 'primary.light',
+                          position: 'sticky',
+                          top: 0,
+                          zIndex: 1,
+                        }}
+                      >
                         Presença
                       </TableCell>
                     </TableRow>
