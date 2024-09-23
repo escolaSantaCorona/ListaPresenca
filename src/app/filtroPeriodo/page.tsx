@@ -128,27 +128,7 @@ function AbsenceTable() {
             Relatório de Ausências
           </Typography>
           <Grid container spacing={2} alignItems="flex-end">
-            {/* Filtros */}
-            <Grid item xs={12} md={3}>
-              <FormControl fullWidth variant="outlined">
-                <InputLabel id="class-label">Turma</InputLabel>
-                <Select
-                  labelId="class-label"
-                  label="Turma"
-                  value={selectedClass}
-                  onChange={(e) => setSelectedClass(e.target.value as string)}
-                >
-                  <MenuItem value="">
-                    <em>Todos</em>
-                  </MenuItem>
-                  {classNames.map((className) => (
-                    <MenuItem key={className} value={className}>
-                      {className}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
+           
             <Grid item xs={12} md={3}>
               <TextField
                 fullWidth
