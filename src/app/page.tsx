@@ -1,9 +1,7 @@
 'use client';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useEffect, useState } from 'react';
-import { useForm, Controller, SubmitHandler } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import {
   MenuItem,
   Select,
@@ -28,6 +26,7 @@ import {
 } from '@mui/material';
 import axios from 'axios';
 import './globals.css';
+import MyAppBar from '@/components/NavBar';
 
 // Define types for Students
 interface Student {
@@ -55,7 +54,7 @@ const formatDate = (dateString: string) => {
 
 export default function AttendanceForm() {
   // useForm with AttendanceData to type the form values
-  const { control, watch, handleSubmit, setValue, reset, getValues } = useForm<AttendanceData>(); // Use AttendanceData type
+  const { control, watch,  setValue, reset, getValues } = useForm<AttendanceData>();
   const [dates, setDates] = useState<string[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -73,18 +72,18 @@ export default function AttendanceForm() {
   useEffect(() => {
     if (selectedClass) {
       const fetchDatesForClass = async () => {
-        setIsDatesLoading(true); // Inicia o carregamento das datas
+        setIsDatesLoading(true);
         try {
           // Make an API request to fetch available dates for the selected class
           const response = await axios.get('/api/dates', {
-            params: { className: selectedClass }, // Pass className as a query parameter
+            params: { className: selectedClass },
           });
-          setDates(response.data); // Populate the dates array
-          setValue('date', ''); // Reset date when className changes
+          setDates(response.data);
+          setValue('date', '');
         } catch (error) {
           console.error('Error fetching dates:', error);
         } finally {
-          setIsDatesLoading(false); // Finaliza o carregamento das datas
+          setIsDatesLoading(false);
         }
       };
       fetchDatesForClass();
@@ -95,24 +94,28 @@ export default function AttendanceForm() {
   useEffect(() => {
     if (selectedClass && selectedDate) {
       const fetchStudentsForClassAndDate = async () => {
-        setIsStudentsLoading(true); // Inicia o carregamento dos alunos
+        setIsStudentsLoading(true);
         try {
-          setStudents([]); // Clear students state before fetching new data
+          setStudents([]);
           const response = await axios.get('/api/attendance', {
-            params: { className: selectedClass, date: selectedDate },
+            params: {
+              action: 'getAttendance', // Adicione esta linha
+              className: selectedClass,
+              date: selectedDate,
+            },
           });
-          setStudents(response.data); // Populate students array
+          setStudents(response.data);
           reset({
-            className: selectedClass, // Preserve the selected class
-            date: selectedDate, // Preserve the selected date
+            className: selectedClass,
+            date: selectedDate,
             students: response.data.map((student: Student) => ({
               attendanceValue: student.attendanceValue,
-            })), // Update students data
+            })),
           });
         } catch (error) {
           console.error('Error fetching students:', error);
         } finally {
-          setIsStudentsLoading(false); // Finaliza o carregamento dos alunos
+          setIsStudentsLoading(false);
         }
       };
       fetchStudentsForClassAndDate();
@@ -122,6 +125,7 @@ export default function AttendanceForm() {
   const submitAttendanceData = async (data: AttendanceData) => {
     try {
       const payload = {
+        action: 'updateAttendance', // Adicione esta linha
         className: data.className,
         date: data.date,
         students: data.students.map((student, index) => ({
@@ -153,7 +157,11 @@ export default function AttendanceForm() {
 
   return (
     // Substitua o <form> por um <div> já que não estamos mais usando o onSubmit
-    <div>
+    <>
+     <MyAppBar/>
+   
+    <Box sx={{marginTop:"100px"}}>
+     
       <Container sx={{ marginTop: '50px' }}>
         <Grid container spacing={3}>
           {/* Dropdowns and Search Input */}
@@ -174,7 +182,7 @@ export default function AttendanceForm() {
                       {...field}
                       labelId="class-label"
                       label="Turma"
-                      sx={{ '&:hover': { borderColor: 'primary.main' } }} // Hover effect
+                      sx={{ '&:hover': { borderColor: 'primary.main' } }}
                     >
                       {classNames.map((className) => (
                         <MenuItem key={className} value={className}>
@@ -197,18 +205,18 @@ export default function AttendanceForm() {
                     <Select
                       {...field}
                       labelId="date-label"
-                      label={isDatesLoading ? "Carregando... aguarde" : "Data"}
-
-                      sx={{ '&:hover': { borderColor: 'primary.main' } }} // Hover effect
+                      label="Data"
+                      disabled={!selectedClass || isDatesLoading}
+                      sx={{ '&:hover': { borderColor: 'primary.main' } }}
                     >
                       {isDatesLoading ? (
-                        <MenuItem value="">
+                        <MenuItem value="" disabled>
                           Carregando... aguarde
                         </MenuItem>
                       ) : (
                         dates.map((date) => (
                           <MenuItem key={date} value={date}>
-                            {formatDate(date)} {/* Format the date here */}
+                            {formatDate(date)}
                           </MenuItem>
                         ))
                       )}
@@ -288,7 +296,8 @@ export default function AttendanceForm() {
                         </TableCell>
                       </TableRow>
                     ) : filteredStudents.length > 0 ? (
-                      filteredStudents.map((student, index) => {
+                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                      filteredStudents.map((student, _index) => {
                         // Encontrar o índice do aluno original na lista completa de students
                         const originalIndex = students.findIndex(
                           (s) => s.studentName === student.studentName
@@ -357,6 +366,7 @@ export default function AttendanceForm() {
           </Grid>
         </Grid>
       </Container>
-    </div>
+    </Box>
+    </>
   );
 }
