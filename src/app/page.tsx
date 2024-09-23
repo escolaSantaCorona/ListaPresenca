@@ -11,7 +11,6 @@ import {
   FormControl,
   InputLabel,
   Switch,
-  Button,
   Grid,
   Paper,
   Table,
@@ -23,6 +22,9 @@ import {
   Container,
   Box,
   Typography,
+  Checkbox,
+  FormControlLabel,
+  FormGroup,
 } from '@mui/material';
 import axios from 'axios';
 import './globals.css';
@@ -53,10 +55,14 @@ const formatDate = (dateString: string) => {
 
 export default function AttendanceForm() {
   // useForm with AttendanceData to type the form values
-  const { control, watch, handleSubmit, setValue, reset } = useForm<AttendanceData>(); // Use AttendanceData type
+  const { control, watch, handleSubmit, setValue, reset, getValues } = useForm<AttendanceData>(); // Use AttendanceData type
   const [dates, setDates] = useState<string[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [showPresent, setShowPresent] = useState(true);
+  const [showAbsent, setShowAbsent] = useState(true);
+  const [isDatesLoading, setIsDatesLoading] = useState(false);
+  const [isStudentsLoading, setIsStudentsLoading] = useState(false);
   // Static array of class names
   const classNames = ['6A', '6B', '7A', '7B', '8A', '8B', '9A', '9B'];
 
@@ -67,6 +73,7 @@ export default function AttendanceForm() {
   useEffect(() => {
     if (selectedClass) {
       const fetchDatesForClass = async () => {
+        setIsDatesLoading(true); // Inicia o carregamento das datas
         try {
           // Make an API request to fetch available dates for the selected class
           const response = await axios.get('/api/dates', {
@@ -76,6 +83,8 @@ export default function AttendanceForm() {
           setValue('date', ''); // Reset date when className changes
         } catch (error) {
           console.error('Error fetching dates:', error);
+        } finally {
+          setIsDatesLoading(false); // Finaliza o carregamento das datas
         }
       };
       fetchDatesForClass();
@@ -86,6 +95,7 @@ export default function AttendanceForm() {
   useEffect(() => {
     if (selectedClass && selectedDate) {
       const fetchStudentsForClassAndDate = async () => {
+        setIsStudentsLoading(true); // Inicia o carregamento dos alunos
         try {
           setStudents([]); // Clear students state before fetching new data
           const response = await axios.get('/api/attendance', {
@@ -101,19 +111,21 @@ export default function AttendanceForm() {
           });
         } catch (error) {
           console.error('Error fetching students:', error);
+        } finally {
+          setIsStudentsLoading(false); // Finaliza o carregamento dos alunos
         }
       };
       fetchStudentsForClassAndDate();
     }
   }, [selectedClass, selectedDate, reset]);
 
-  const onSubmit: SubmitHandler<AttendanceData> = async (data) => {
+  const submitAttendanceData = async (data: AttendanceData) => {
     try {
       const payload = {
         className: data.className,
         date: data.date,
         students: data.students.map((student, index) => ({
-          studentName: students[index].studentName, // Add the studentName
+          studentName: students[index].studentName,
           attendanceValue: student.attendanceValue,
         })),
       };
@@ -121,22 +133,27 @@ export default function AttendanceForm() {
       const response = await axios.post('/api/attendance', payload);
 
       console.log('Attendance updated:', response.data);
-      alert('Presença salva com sucesso');
+      // Você pode adicionar uma notificação aqui se quiser
     } catch (error) {
       console.error('Error submitting attendance:', error);
-      alert('Erro ao salvar');
+      // Você pode adicionar uma notificação de erro aqui se quiser
     }
   };
 
-  // Filtra os alunos com base no termo de pesquisa, mas mostra todos se o campo estiver vazio
-  const filteredStudents = searchTerm.trim()
-    ? students.filter((student) =>
-        normalizeString(student.studentName).includes(normalizeString(searchTerm))
-      )
-    : students; // Se o searchTerm estiver vazio, mostra todos os alunos
+  // Filtra os alunos com base no termo de pesquisa e nos filtros de presença
+  const filteredStudents = students.filter((student) => {
+    const matchesSearchTerm = searchTerm.trim()
+      ? normalizeString(student.studentName).includes(normalizeString(searchTerm))
+      : true;
+    const isPresent = student.attendanceValue === '.';
+    const matchesFilter =
+      (isPresent && showPresent) || (!isPresent && showAbsent);
+    return matchesSearchTerm && matchesFilter;
+  });
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
+    // Substitua o <form> por um <div> já que não estamos mais usando o onSubmit
+    <div>
       <Container sx={{ marginTop: '50px' }}>
         <Grid container spacing={3}>
           {/* Dropdowns and Search Input */}
@@ -180,15 +197,21 @@ export default function AttendanceForm() {
                     <Select
                       {...field}
                       labelId="date-label"
-                      label="Data"
-                      disabled={!selectedClass}
+                      label={isDatesLoading ? "Carregando... aguarde" : "Data"}
+
                       sx={{ '&:hover': { borderColor: 'primary.main' } }} // Hover effect
                     >
-                      {dates.map((date) => (
-                        <MenuItem key={date} value={date}>
-                          {formatDate(date)} {/* Format the date here */}
+                      {isDatesLoading ? (
+                        <MenuItem value="">
+                          Carregando... aguarde
                         </MenuItem>
-                      ))}
+                      ) : (
+                        dates.map((date) => (
+                          <MenuItem key={date} value={date}>
+                            {formatDate(date)} {/* Format the date here */}
+                          </MenuItem>
+                        ))
+                      )}
                     </Select>
                   )}
                 />
@@ -202,6 +225,37 @@ export default function AttendanceForm() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 sx={{ marginTop: 2 }}
               />
+
+              {/* Filtros de Presença */}
+              <FormControl component="fieldset" sx={{ marginTop: 2 }}>
+                <Typography variant="subtitle1" gutterBottom>
+                  Filtrar por Presença
+                </Typography>
+                <FormGroup row>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={showPresent}
+                        onChange={(e) => setShowPresent(e.target.checked)}
+                        name="showPresent"
+                        color="primary"
+                      />
+                    }
+                    label="Presentes"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={showAbsent}
+                        onChange={(e) => setShowAbsent(e.target.checked)}
+                        name="showAbsent"
+                        color="primary"
+                      />
+                    }
+                    label="Ausentes"
+                  />
+                </FormGroup>
+              </FormControl>
             </Paper>
           </Grid>
 
@@ -227,7 +281,13 @@ export default function AttendanceForm() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {filteredStudents.length > 0 ? (
+                    {isStudentsLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={2} align="center">
+                          Carregando... aguarde
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredStudents.length > 0 ? (
                       filteredStudents.map((student, index) => {
                         // Encontrar o índice do aluno original na lista completa de students
                         const originalIndex = students.findIndex(
@@ -265,9 +325,11 @@ export default function AttendanceForm() {
                                   >
                                     <Switch
                                       checked={field.value === '.'}
-                                      onChange={(e) =>
-                                        field.onChange(e.target.checked ? '.' : 'F')
-                                      }
+                                      onChange={async (e) => {
+                                        field.onChange(e.target.checked ? '.' : 'F');
+                                        const data = getValues();
+                                        await submitAttendanceData(data);
+                                      }}
                                       color="primary"
                                       size="small"
                                     />
@@ -290,23 +352,11 @@ export default function AttendanceForm() {
                     )}
                   </TableBody>
                 </Table>
-                <Box sx={{ textAlign: 'center', marginTop: 2,marginBottom:2 }}>
-              <Button type="submit" variant="contained" color="success">
-                Salvar Presença
-              </Button>
-              </Box>
               </TableContainer>
-              
-             
             </Paper>
-          </Grid>
-
-          {/* Submit Button */}
-          <Grid item xs={12}>
-           
           </Grid>
         </Grid>
       </Container>
-    </form>
+    </div>
   );
 }
