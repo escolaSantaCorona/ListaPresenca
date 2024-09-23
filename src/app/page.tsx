@@ -99,25 +99,34 @@ export default function AttendanceForm() {
           setStudents([]);
           const response = await axios.get('/api/attendance', {
             params: {
-              action: 'getAttendance', // Adicione esta linha
+              action: 'getAttendance',
               className: selectedClass,
               date: selectedDate,
             },
           });
-          setStudents(response.data);
-          reset({
-            className: selectedClass,
-            date: selectedDate,
-            students: response.data.map((student: Student) => ({
-              attendanceValue: student.attendanceValue,
-            })),
-          });
+          console.log('Resposta da API /api/attendance:', response.data);
+      
+          if (Array.isArray(response.data)) {
+            setStudents(response.data);
+            reset({
+              className: selectedClass,
+              date: selectedDate,
+              students: response.data.map((student: Student) => ({
+                attendanceValue: student.attendanceValue,
+              })),
+            });
+          } else {
+            console.error('Dados inválidos recebidos da API:', response.data);
+            alert('Erro ao carregar os dados dos alunos.');
+          }
         } catch (error) {
           console.error('Error fetching students:', error);
+          alert('Erro ao buscar os alunos.');
         } finally {
           setIsStudentsLoading(false);
         }
       };
+      
       fetchStudentsForClassAndDate();
     }
   }, [selectedClass, selectedDate, reset]);
