@@ -8,7 +8,6 @@ import {
   TextField,
   FormControl,
   InputLabel,
-  Switch,
   Grid,
   Paper,
   Table,
@@ -24,6 +23,10 @@ import {
   FormControlLabel,
   FormGroup,
 } from '@mui/material';
+import { ToggleButton } from '@mui/material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
+
 import axios from 'axios';
 import './globals.css';
 import MyAppBar from '@/components/NavBar';
@@ -53,6 +56,7 @@ const formatDate = (dateString: string) => {
 };
 
 export default function AttendanceForm() {
+
   // useForm with AttendanceData to type the form values
   const { control, watch,  setValue, reset, getValues } = useForm<AttendanceData>();
   const [dates, setDates] = useState<string[]>([]);
@@ -280,7 +284,7 @@ export default function AttendanceForm() {
           <Grid item xs={12} md={8}>
             <Paper sx={{ padding: '20px', boxShadow: 3, borderRadius: 2 }}>
               <Typography variant="h6" gutterBottom>
-                Lista de Alunos
+                Lista de Chamada
               </Typography>
               <TableContainer sx={{ maxHeight: 500 }}>
                 <Table stickyHeader aria-label="attendance table">
@@ -319,48 +323,57 @@ export default function AttendanceForm() {
 
                         return (
                           <TableRow
-                            key={student.studentName}
-                            sx={{
-                              '&:hover': {
-                                backgroundColor: '#f5f5f5',
-                              },
-                            }}
-                          >
-                            <TableCell>{student.studentName}</TableCell>
-                            <TableCell align="center">
-                              <Controller
-                                name={`students.${originalIndex}.attendanceValue`} // Use o índice original do aluno
-                                control={control}
-                                defaultValue={student.attendanceValue}
-                                render={({ field }) => (
-                                  <Box
-                                    sx={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      gap: 1,
-                                    }}
-                                  >
-                                    <Switch
-                                      checked={field.value === '.'}
-                                      onChange={async (e) => {
-                                        field.onChange(e.target.checked ? '.' : 'F');
-                                        const data = getValues();
-                                        await submitAttendanceData(data);
-                                      }}
-                                      color="primary"
-                                      size="small"
-                                    />
-                                    <Typography variant="body2">
-                                      {field.value === '.' ? 'Presente' : 'Ausente'}
-                                    </Typography>
-                                  </Box>
-                                )}
-                              />
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
+                          key={student.studentName}
+                          sx={{
+                            backgroundColor: student.attendanceValue === '.' ? '#e0f7e9' : '#ffebee',
+                            '&:hover': {
+                              backgroundColor: student.attendanceValue === '.' ? '#d0f0d9' : '#ffdddd',
+                            },
+                          }}
+                        >
+                          <TableCell sx={{color:"black"}}>{student.studentName}</TableCell>
+                          <TableCell align="center">
+                            <Controller
+                              name={`students.${originalIndex}.attendanceValue`}
+                              control={control}
+                              defaultValue={student.attendanceValue}
+                              render={({ field }) => (
+                                <ToggleButton
+                                  value="check"
+                                  selected={field.value === '.'}
+                                  onChange={async () => {
+                                    const newValue = field.value === '.' ? 'F' : '.';
+                                    field.onChange(newValue);
+                                    const data = getValues();
+                                    await submitAttendanceData(data);
+                                  }}
+                                  sx={{
+                                    width: 'fit-content',
+                                    backgroundColor: field.value === '.' ? 'green' : 'red',
+                                    color: 'white',
+                                    '&:hover': {
+                                      backgroundColor: field.value === '.' ? 'darkgreen' : 'darkred',
+                                    },
+                                  }}
+                                >
+                                  {field.value === '.' ? (
+                                    <Box sx={{display:"flex",gap:'2px'}}>
+                                    <CheckCircleIcon color='success'/>
+                                    <Typography color='success'>Presente</Typography>
+                                    </Box>
+                                  ) : (
+                                    <Box sx={{display:"flex",gap:'2px'}}>
+                                    <CancelIcon />
+                                    <Typography sx={{color:"white",fontWeight:"bold"}}>Ausente</Typography>
+                                    </Box>
+                                  )}
+                                </ToggleButton>
+                              )}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                     ) : (
                       <TableRow>
                         <TableCell colSpan={2} align="center">
