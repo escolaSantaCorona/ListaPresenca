@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { GOOGLE_SCRIPT_URL } from '../attendance/route';
 
 // URL da API do Google Apps Script
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxwY8J6l8TwaLOIRTRQf09UGL91wzyPKjzUAVpUc0hyjpuAY5Aa_fJq4zpHwG69CscQ/exec';
+
 //add
 // Função auxiliar para fazer chamadas HTTP para o Google Apps Script
 async function callGoogleScriptAPI(query: string) {

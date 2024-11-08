@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client'
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -27,6 +26,16 @@ import { CheckCircle, Cancel } from '@mui/icons-material';
 import MyAppBar from '@/components/NavBar';
 
 const classNames = ['6A', '6B', '7A', '7B', '8A', '8B', '9A', '9B'];
+
+const weekdays = [
+  { value: 0, label: 'Domingo' },
+  { value: 1, label: 'Segunda-feira' },
+  { value: 2, label: 'Terça-feira' },
+  { value: 3, label: 'Quarta-feira' },
+  { value: 4, label: 'Quinta-feira' },
+  { value: 5, label: 'Sexta-feira' },
+  { value: 6, label: 'Sábado' },
+];
 
 const formatDate = (dateString: string) => {
   const [year, month, day] = dateString.split('-');
@@ -57,6 +66,7 @@ function AbsenceTable() {
   const [studentOptions, setStudentOptions] = useState<string[]>([]);
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
 
   // Função de filtro personalizada
   const filterOptions = (options: string[], { inputValue }: { inputValue: string }) => {
@@ -98,7 +108,20 @@ function AbsenceTable() {
           studentName: inputValue || undefined,
         },
       });
-      setAbsences(response.data);
+      let data = response.data;
+  
+      console.log('Data received from API:', data);
+  
+      if (selectedWeekdays.length > 0) {
+        data = data.filter((absence: Absence) => {
+          const [year, month, day] = absence.date.split('-').map(Number);
+          const date = new Date(Date.UTC(year, month - 1, day));
+          const dayOfWeek = date.getUTCDay(); // 0 é Domingo, 1 é Segunda-feira, etc.
+          return selectedWeekdays.includes(dayOfWeek);
+        });
+      }
+  
+      setAbsences(data);
     } catch (error) {
       console.error('Error fetching absences:', error);
       alert('Erro ao buscar ausências.');
@@ -106,6 +129,8 @@ function AbsenceTable() {
       setIsLoading(false);
     }
   };
+  
+  
 
   const handleSearch = () => {
     if (new Date(startDate) > new Date(endDate)) {
@@ -128,7 +153,6 @@ function AbsenceTable() {
             Relatório de Ausências
           </Typography>
           <Grid container spacing={2} alignItems="flex-end">
-
             <Grid item xs={12} md={3}>
               <TextField
                 fullWidth
@@ -169,6 +193,29 @@ function AbsenceTable() {
                   <TextField {...params} label="Pesquisar Aluno" variant="outlined" />
                 )}
               />
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth variant="outlined">
+                <InputLabel id="weekday-select-label">Dias da Semana</InputLabel>
+                <Select
+                  labelId="weekday-select-label"
+                  multiple
+                  value={selectedWeekdays}
+                  onChange={(e) => setSelectedWeekdays(e.target.value as number[])}
+                  label="Dias da Semana"
+                  renderValue={(selected) =>
+                    (selected as number[])
+                      .map((value) => weekdays.find((day) => day.value === value)?.label)
+                      .join(', ')
+                  }
+                >
+                  {weekdays.map((day) => (
+                    <MenuItem key={day.value} value={day.value}>
+                      {day.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
             <Grid item xs={12} md={3}>
               <Button
