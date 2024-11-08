@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-
+//url da planilha geral: https://script.google.com/macros/s/AKfycbxwY8J6l8TwaLOIRTRQf09UGL91wzyPKjzUAVpUc0hyjpuAY5Aa_fJq4zpHwG69CscQ/exec
+//url da planilha original: https://script.google.com/macros/s/AKfycbyr3Ktbyvpkpzvj8Fx_vhsg5X4AisVO6d8wXDuca2gjJqQgoliy58q4ZbG1pqLoiuxm/exec
 // URL da API do Google Apps Script que você configurou
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyr3Ktbyvpkpzvj8Fx_vhsg5X4AisVO6d8wXDuca2gjJqQgoliy58q4ZbG1pqLoiuxm/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxwY8J6l8TwaLOIRTRQf09UGL91wzyPKjzUAVpUc0hyjpuAY5Aa_fJq4zpHwG69CscQ/exec';
 
 // Função auxiliar para fazer chamadas HTTP para o Google Apps Script
 async function callGoogleScriptAPI(query: string) {
