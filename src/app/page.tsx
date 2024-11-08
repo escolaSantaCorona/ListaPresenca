@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import {
   MenuItem,
@@ -66,13 +66,15 @@ export default function AttendanceForm() {
   const { control, watch, setValue, reset, getValues } = useForm<AttendanceData>();
   const [dates, setDates] = useState<string[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
-  const [searchTerm, setSearchTerm] = useState<string>('');
   const [showPresent, setShowPresent] = useState(true);
   const [showAbsent, setShowAbsent] = useState(true);
   const [isDatesLoading, setIsDatesLoading] = useState(false);
   const [isStudentsLoading, setIsStudentsLoading] = useState(false);
   const [months, setMonths] = useState<string[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const classNames = ['6A', '6B', '7A', '7B', '8A', '8B', '9A', '9B'];
   const selectedClass = watch('className');
@@ -173,6 +175,15 @@ export default function AttendanceForm() {
     return matchesSearchTerm && matchesFilter;
   });
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      searchInputRef.current?.focus();
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, []);
+
+
   return (
     <>
       <MyAppBar />
@@ -246,15 +257,15 @@ export default function AttendanceForm() {
                   />
                 </FormControl>
 
-                {/* Search Input */}
                 <TextField
                   fullWidth
                   label="Pesquisar Aluno"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  inputRef={searchInputRef}
                   sx={{ marginTop: 2 }}
                 />
-
+                
                 {/* Filtros de Presença */}
                 <FormControl component="fieldset" sx={{ marginTop: 2 }}>
                   <Typography variant="subtitle1" gutterBottom>

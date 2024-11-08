@@ -1,6 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client'
 import React, { useState, useEffect } from 'react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import axios from 'axios';
 import {
   Container,
@@ -110,9 +113,9 @@ function AbsenceTable() {
         },
       });
       let data = response.data;
-  
+
       console.log('Data received from API:', data);
-  
+
       if (selectedWeekdays.length > 0) {
         data = data.filter((absence: Absence) => {
           const [year, month, day] = absence.date.split('-').map(Number);
@@ -121,7 +124,7 @@ function AbsenceTable() {
           return selectedWeekdays.includes(dayOfWeek);
         });
       }
-  
+
       setAbsences(data);
     } catch (error) {
       console.error('Error fetching absences:', error);
@@ -130,8 +133,8 @@ function AbsenceTable() {
       setIsLoading(false);
     }
   };
-  
-  
+
+
 
   const handleSearch = () => {
     if (new Date(startDate) > new Date(endDate)) {
@@ -145,6 +148,74 @@ function AbsenceTable() {
     fetchAbsences();
   };
 
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text('Relatório de Ausências', 14, 22);
+    doc.setFontSize(12);
+
+    // Informações gerais no cabeçalho
+    doc.text(`Período: ${formatDate(startDate)} a ${formatDate(endDate)}`, 14, 32);
+
+    // Exibe os dias da semana selecionados, se houver
+    if (selectedWeekdays.length > 0) {
+      const selectedWeekdaysLabels = selectedWeekdays
+        .map((dayValue) => weekdays.find((day) => day.value === dayValue)?.label)
+        .filter(Boolean)
+        .join(', ');
+
+      doc.text(`Dia(s) da semana selecionado(s): ${selectedWeekdaysLabels}`, 14, 40);
+    }
+
+    // Nome do aluno e turma, exibido uma vez
+    if (absences.length > 0) {
+      doc.text(`Nome do aluno: ${absences[0].studentName}`, 14, 48);
+    }
+
+    doc.text(`Total de faltas: ${absences.length}`, 14, 56);
+
+    // Definição das colunas e linhas da tabela
+    const tableColumn = ['Data', 'Comparência'];
+    const tableRows = absences.map((absence) => [
+      formatDate(absence.date),
+      absence.attendanceValue === 'F' ? 'Ausente' : 'Presente',
+    ]);
+
+    // Renderização da tabela
+    (doc as any).autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 64,
+      styles: {
+        fontSize: 10,
+        cellPadding: 3,
+        halign: 'center',
+        valign: 'middle',
+      },
+      headStyles: {
+        fillColor: [22, 160, 133],
+        textColor: [255, 255, 255],
+        fontSize: 11,
+      },
+      bodyStyles: {
+        fillColor: [245, 245, 245],
+        textColor: [0, 0, 0],
+      },
+      alternateRowStyles: {
+        fillColor: [255, 255, 255],
+      },
+      theme: 'grid',
+      margin: { top: 50, left: 14, right: 14 },
+      tableWidth: 'auto',
+    });
+
+    doc.save('Relatório_de_Ausências.pdf');
+  };
+
+
+
+
+
   return (
     <>
       <MyAppBar />
@@ -154,84 +225,114 @@ function AbsenceTable() {
             Relatório de Ausências
           </Typography>
           <Grid container spacing={2} alignItems="flex-end">
-            <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth
-                label="Data Inicial"
-                type="date"
-                InputLabelProps={{ shrink: true }}
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                variant="outlined"
-              />
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth
-                label="Data Final"
-                type="date"
-                InputLabelProps={{ shrink: true }}
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                variant="outlined"
-              />
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <Autocomplete
-                freeSolo
-                options={studentOptions}
-                getOptionLabel={(option) => option}
-                value={searchTerm}
-                onChange={(event, newValue) => {
-                  setSearchTerm(newValue);
-                }}
-                inputValue={inputValue}
-                onInputChange={(event, newInputValue) => {
-                  setInputValue(newInputValue);
-                }}
-                filterOptions={filterOptions}
-                renderInput={(params) => (
-                  <TextField {...params} label="Pesquisar Aluno" variant="outlined" />
-                )}
-              />
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <FormControl fullWidth variant="outlined">
-                <InputLabel id="weekday-select-label">Dias da Semana</InputLabel>
-                <Select
-                  labelId="weekday-select-label"
-                  multiple
-                  value={selectedWeekdays}
-                  onChange={(e) => setSelectedWeekdays(e.target.value as number[])}
-                  label="Dias da Semana"
-                  renderValue={(selected) =>
-                    (selected as number[])
-                      .map((value) => weekdays.find((day) => day.value === value)?.label)
-                      .join(', ')
-                  }
-                >
-                  {weekdays.map((day) => (
-                    <MenuItem key={day.value} value={day.value}>
-                      {day.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <Button
-                variant="contained"
-                color="primary"
-                fullWidth
-                onClick={handleSearch}
-                disabled={!startDate || !endDate || (!selectedClass && !inputValue)}
-                size="large"
-                sx={{ marginTop: { xs: '10px', md: '0' } }}
-              >
-                Buscar
-              </Button>
-            </Grid>
-          </Grid>
+  {/* Campo de Data Inicial */}
+  <Grid item xs={12} md={3}>
+    <TextField
+      fullWidth
+      label="Data Inicial"
+      type="date"
+      InputLabelProps={{ shrink: true }}
+      value={startDate}
+      onChange={(e) => setStartDate(e.target.value)}
+      variant="outlined"
+    />
+  </Grid>
+
+  {/* Campo de Data Final */}
+  <Grid item xs={12} md={3}>
+    <TextField
+      fullWidth
+      label="Data Final"
+      type="date"
+      InputLabelProps={{ shrink: true }}
+      value={endDate}
+      onChange={(e) => setEndDate(e.target.value)}
+      variant="outlined"
+    />
+  </Grid>
+
+  {/* Campo de Pesquisa de Aluno */}
+  <Grid item xs={12} md={3}>
+    <Autocomplete
+      freeSolo
+      options={studentOptions}
+      getOptionLabel={(option) => option}
+      value={searchTerm}
+      onChange={(event, newValue) => {
+        setSearchTerm(newValue);
+      }}
+      inputValue={inputValue}
+      onInputChange={(event, newInputValue) => {
+        setInputValue(newInputValue);
+      }}
+      filterOptions={filterOptions}
+      renderInput={(params) => (
+        <TextField {...params} label="Pesquisar Aluno" variant="outlined" />
+      )}
+    />
+  </Grid>
+
+  {/* Seleção de Dias da Semana */}
+  <Grid item xs={12} md={3}>
+    <FormControl fullWidth variant="outlined">
+      <InputLabel id="weekday-select-label">Dias da Semana</InputLabel>
+      <Select
+        labelId="weekday-select-label"
+        multiple
+        value={selectedWeekdays}
+        onChange={(e) => setSelectedWeekdays(e.target.value as number[])}
+        label="Dias da Semana"
+        renderValue={(selected) =>
+          (selected as number[])
+            .map((value) => weekdays.find((day) => day.value === value)?.label)
+            .join(', ')
+        }
+      >
+        {weekdays.map((day) => (
+          <MenuItem key={day.value} value={day.value}>
+            {day.label}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  </Grid>
+
+  {/* Botões de Ação e Campo de Turma */}
+  <Grid item xs={12} md={12}>
+    <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ gap: 2 }}>
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={handleSearch}
+        disabled={!startDate || !endDate || (!selectedClass && !inputValue)}
+        size="large"
+        sx={{ flex: 1 }}
+      >
+        Buscar
+      </Button>
+
+      <Button
+        variant="contained"
+        color="secondary"
+        onClick={handleExportPDF}
+        size="large"
+        sx={{ flex: 1 }}
+      >
+        Exportar para PDF
+      </Button>
+
+      {/* Campo de Exibição da Turma */}
+      {absences.length > 0 && (
+        <TextField
+          label="Turma"
+          value={absences[0].className}
+          disabled
+          sx={{ flex: 1 }}
+        />
+      )}
+    </Box>
+  </Grid>
+</Grid>
 
           {/* Mensagem de Carregamento */}
           {isLoading ? (
@@ -241,53 +342,38 @@ function AbsenceTable() {
           ) : (
             <>
               {/* Tabela de Ausências */}
-              <TableContainer sx={{ marginTop: '20px', maxHeight: 400 }}>
-                <Table stickyHeader aria-label="sticky table">
+              <TableContainer sx={{ marginTop: '20px', maxHeight: 400, borderRadius: 2, border: '1px solid #e0e0e0' }}>
+                <Table stickyHeader aria-label="Tabela de Ausências">
                   <TableHead>
                     <TableRow>
                       <TableCell
                         sx={{
                           fontWeight: 'bold',
-                          backgroundColor: 'primary.light',
+                          backgroundColor: '#d32f2f',
+                          color: 'white',
                           position: 'sticky',
                           top: 0,
                           zIndex: 1,
+                          fontSize: '16px',
+                          textAlign: 'center',
                         }}
                       >
                         Data
                       </TableCell>
+
                       <TableCell
                         sx={{
                           fontWeight: 'bold',
-                          backgroundColor: 'primary.light',
+                          backgroundColor: 'blue',
+                          color: 'white',
                           position: 'sticky',
                           top: 0,
                           zIndex: 1,
+                          fontSize: '16px',
+                          textAlign: 'center',
                         }}
                       >
-                        Turma
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          fontWeight: 'bold',
-                          backgroundColor: 'primary.light',
-                          position: 'sticky',
-                          top: 0,
-                          zIndex: 1,
-                        }}
-                      >
-                        Nome do Aluno
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          fontWeight: 'bold',
-                          backgroundColor: 'primary.light',
-                          position: 'sticky',
-                          top: 0,
-                          zIndex: 1,
-                        }}
-                      >
-                        Presença
+                        Status
                       </TableCell>
                     </TableRow>
                   </TableHead>
@@ -297,30 +383,27 @@ function AbsenceTable() {
                         <TableRow
                           key={index}
                           sx={{
-                            backgroundColor: index % 2 ? 'action.hover' : 'background.paper',
+                            backgroundColor: index % 2 === 0 ? '#fbe9e7' : '#ffebee',
+                            '&:hover': {
+                              backgroundColor: '#ffcdd2',
+                            },
                           }}
                         >
-                          <TableCell>{formatDate(absence.date)}</TableCell>
-                          <TableCell>{absence.className}</TableCell>
-                          <TableCell>{absence.studentName}</TableCell>
-                          <TableCell>
-                            {absence.attendanceValue === 'F' ? (
-                              <Box display="flex" alignItems="center">
-                                <Cancel color="error" sx={{ marginRight: 1 }} />
-                                <Typography color="error">Ausente</Typography>
-                              </Box>
-                            ) : (
-                              <Box display="flex" alignItems="center">
-                                <CheckCircle color="success" sx={{ marginRight: 1 }} />
-                                <Typography color="success.main">Presente</Typography>
-                              </Box>
-                            )}
+                          <TableCell sx={{ fontSize: '15px', textAlign: 'center' }}>{formatDate(absence.date)}</TableCell>
+
+                          <TableCell sx={{ fontSize: '15px', textAlign: 'center' }}>
+                            <Box display="flex" alignItems="center" justifyContent="center">
+                              <Cancel color="error" sx={{ marginRight: 1 }} />
+                              <Typography color="error" fontWeight="bold">
+                                Ausente
+                              </Typography>
+                            </Box>
                           </TableCell>
                         </TableRow>
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={4} align="center">
+                        <TableCell colSpan={4} align="center" sx={{ padding: 3 }}>
                           Nenhuma ausência encontrada
                         </TableCell>
                       </TableRow>
@@ -328,6 +411,7 @@ function AbsenceTable() {
                   </TableBody>
                 </Table>
               </TableContainer>
+
 
               {/* Total de Faltas */}
               <Typography variant="subtitle1" align="right" sx={{ marginTop: '10px' }}>
