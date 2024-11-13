@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz-LTHRcIHZnvCUX9F4kxWaH_NuC8TT5JtDNQj_jifLBNaVX7W2qQyHk9Kmhlgy9Gey/exec';
 
 // Função auxiliar para fazer chamadas HTTP para o Google Apps Script com timeout
-async function callGoogleScriptAPI(query) {
+async function callGoogleScriptAPI(query: string) { // Adicionei ': string'
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000); // Limite de 15 segundos
 
@@ -25,7 +25,7 @@ async function callGoogleScriptAPI(query) {
 }
 
 // Função para dividir intervalos de data em partes menores
-function createDateChunks(startDate, endDate) {
+function createDateChunks(startDate: string, endDate: string): Array<{ start: string; end: string }> {
   const chunks = [];
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -46,7 +46,12 @@ function createDateChunks(startDate, endDate) {
 }
 
 // Função para buscar ausências em partes menores
-async function getAbsencesInChunks(className, startDate, endDate, studentName) {
+async function getAbsencesInChunks(
+  className: string | null,
+  startDate: string,
+  endDate: string,
+  studentName: string | null
+) {
   const chunks = createDateChunks(startDate, endDate);
   const results = await Promise.all(
     chunks.map(chunk => {
@@ -88,7 +93,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(data, { status: 200 });
     } catch (error) {
       console.error('Error fetching absences:', error);
-      return NextResponse.json({ error: error.message || 'Unknown error' }, { status: 500 });
+      return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
     }
   } else if (action === 'getAttendance') {
     const className = searchParams.get('className');
@@ -109,7 +114,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(data, { status: 200 });
     } catch (error) {
       console.error('Error fetching attendance:', error);
-      return NextResponse.json({ error: error.message || 'Unknown error' }, { status: 500 });
+      return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
     }
   } else {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
@@ -151,7 +156,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(result, { status: 200 });
     } catch (error) {
       console.error('Error submitting attendance:', error);
-      return NextResponse.json({ error: error.message || 'Unknown error' }, { status: 500 });
+      return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
     }
   } else {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
