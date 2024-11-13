@@ -3,14 +3,64 @@ import { NextRequest, NextResponse } from 'next/server';
 // URL da API do Google Apps Script que você configurou
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz-LTHRcIHZnvCUX9F4kxWaH_NuC8TT5JtDNQj_jifLBNaVX7W2qQyHk9Kmhlgy9Gey/exec';
 
-// Função auxiliar para fazer chamadas HTTP para o Google Apps Script
-async function callGoogleScriptAPI(query: string) {
-  const response = await fetch(`${GOOGLE_SCRIPT_URL}?query=${encodeURIComponent(query)}`);
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Google Script API returned an error: ${response.status} ${response.statusText}: ${errorText}`);
+// Função auxiliar para fazer chamadas HTTP para o Google Apps Script com timeout
+async function callGoogleScriptAPI(query) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // Limite de 15 segundos
+
+  try {
+    const response = await fetch(`${GOOGLE_SCRIPT_URL}?query=${encodeURIComponent(query)}`, {
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Google Script API returned an error: ${response.status} ${response.statusText}: ${errorText}`);
+    }
+    return await response.json();
+  } catch (error) {
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return await response.json();
+}
+
+// Função para dividir intervalos de data em partes menores
+function createDateChunks(startDate, endDate) {
+  const chunks = [];
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  while (start <= end) {
+    const chunkEnd = new Date(start);
+    chunkEnd.setDate(start.getDate() + 6); // Intervalo de 7 dias por exemplo
+    if (chunkEnd > end) chunkEnd.setTime(end.getTime());
+
+    chunks.push({
+      start: start.toISOString().split('T')[0],
+      end: chunkEnd.toISOString().split('T')[0],
+    });
+
+    start.setDate(start.getDate() + 7);
+  }
+  return chunks;
+}
+
+// Função para buscar ausências em partes menores
+async function getAbsencesInChunks(className, startDate, endDate, studentName) {
+  const chunks = createDateChunks(startDate, endDate);
+  const results = await Promise.all(
+    chunks.map(chunk => {
+      const query = JSON.stringify({
+        action: 'getAbsences',
+        className,
+        startDate: chunk.start,
+        endDate: chunk.end,
+        studentName,
+      });
+      return callGoogleScriptAPI(query);
+    })
+  );
+  return results.flat(); // Combina os resultados de todas as chamadas
 }
 
 // Handle GET request
@@ -31,23 +81,14 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Cria a query para buscar as ausências
-    const query = JSON.stringify({
-      action: 'getAbsences',
-      className,
-      startDate,
-      endDate,
-      studentName,
-    });
-
     try {
-      console.log('Query sent to Google Script API:', query);
-      const data = await callGoogleScriptAPI(query);
+      console.log(`Fetching absences for ${className} from ${startDate} to ${endDate}`);
+      const data = await getAbsencesInChunks(className, startDate, endDate, studentName);
       console.log('Data received from Google Script API:', data);
       return NextResponse.json(data, { status: 200 });
     } catch (error) {
       console.error('Error fetching absences:', error);
-      return NextResponse.json({ error: error || 'Unknown error' }, { status: 500 });
+      return NextResponse.json({ error: error.message || 'Unknown error' }, { status: 500 });
     }
   } else if (action === 'getAttendance') {
     const className = searchParams.get('className');
@@ -57,7 +98,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'className and date are required' }, { status: 400 });
     }
 
-    // Cria a query para buscar as presenças
     const query = JSON.stringify({
       action: 'getAttendance',
       className,
@@ -69,7 +109,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(data, { status: 200 });
     } catch (error) {
       console.error('Error fetching attendance:', error);
-      return NextResponse.json({ error: error || 'Unknown error' }, { status: 500 });
+      return NextResponse.json({ error: error.message || 'Unknown error' }, { status: 500 });
     }
   } else {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
@@ -88,7 +128,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'className, date, and students are required' }, { status: 400 });
     }
 
-    // Monta o corpo da requisição para enviar ao Google Apps Script
     const payload = JSON.stringify({
       action: 'updateAttendance',
       className,
@@ -112,7 +151,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(result, { status: 200 });
     } catch (error) {
       console.error('Error submitting attendance:', error);
-      return NextResponse.json({ error: error || 'Unknown error' }, { status: 500 });
+      return NextResponse.json({ error: error.message || 'Unknown error' }, { status: 500 });
     }
   } else {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
