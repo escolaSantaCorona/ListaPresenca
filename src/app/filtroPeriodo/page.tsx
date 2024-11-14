@@ -128,7 +128,7 @@ function AbsenceTable() {
       setAbsences(data);
     } catch (error) {
       console.error('Error fetching absences:', error);
-      alert('Conexão lenta, tente novamente!');
+      alert('A conexão demorando para buscar os dados, tente novamente!');
     } finally {
       setIsLoading(false);
     }
