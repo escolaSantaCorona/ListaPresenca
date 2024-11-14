@@ -4,9 +4,9 @@ import { NextRequest, NextResponse } from 'next/server';
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz-LTHRcIHZnvCUX9F4kxWaH_NuC8TT5JtDNQj_jifLBNaVX7W2qQyHk9Kmhlgy9Gey/exec';
 
 // Função auxiliar para fazer chamadas HTTP para o Google Apps Script com timeout
-async function callGoogleScriptAPI(query: string) { // Adicionei ': string'
+async function callGoogleScriptAPI(query: string) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000); // Limite de 15 segundos
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // Increased to 30 seconds
 
   try {
     const response = await fetch(`${GOOGLE_SCRIPT_URL}?query=${encodeURIComponent(query)}`, {
@@ -23,6 +23,7 @@ async function callGoogleScriptAPI(query: string) { // Adicionei ': string'
     clearTimeout(timeoutId);
   }
 }
+
 
 // Função para dividir intervalos de data em partes menores
 function createDateChunks(startDate: string, endDate: string): Array<{ start: string; end: string }> {
