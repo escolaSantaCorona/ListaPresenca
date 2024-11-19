@@ -10,7 +10,7 @@ function MyAppBar() {
   
   const linkStyles = {
     textDecoration: 'none',
-    color: 'AppWorkspace',
+    color: 'white',
     margin: '0 16px',
     fontWeight: "700",
     fontFamily:'Roboto',
