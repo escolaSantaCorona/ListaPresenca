@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyDLvflleAKG_cYWvTGgZ_yCvoKX7j5USA2U7SH3VdhKYAS2Aj9eTBVg6mg7nLwsHVX/exec';
 
 //add
-// Função auxiliar para fazer chamadas HTTP para o Google Apps Script
+// making calls to HTTP para o Google Apps Script
 async function callGoogleScriptAPI(query: string) {
   const response = await fetch(`${GOOGLE_SCRIPT_URL}?query=${encodeURIComponent(query)}`);
   if (!response.ok) {
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const className = searchParams.get('className');
 
-  // Cria a query para buscar os alunos
+  // create a query seek the studants
   const query = JSON.stringify({
     action: 'getStudents',
     className,
