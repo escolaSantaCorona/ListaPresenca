@@ -76,7 +76,7 @@ export default function AttendanceForm() {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const classNames = ['6A', '6B', '7A', '7B', '8A', '8B', '9A', '9B'];
+  const classNames = ['6A','7A', '7B', '8A', '8B', '9A', '9B'];
   const selectedClass = watch('className');
   const selectedDate = watch('date');
 
