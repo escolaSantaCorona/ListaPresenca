@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // URL da API do Google Apps Script que você configurou
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzLaSYPPvUhYdEijQqUe7ykXQKpTKqv-vVgHYcrA78d22UPnpXdGkolLvY7vMIbx_p4/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzIJn55oc7JFz1fTrmyZHwUE5bRR7m--o-EBdDki5OVW1wzDSdhWUaJeBdFR767ROVt/exec';
 
 // Função auxiliar para fazer chamadas HTTP para o Google Apps Script com timeout
 async function callGoogleScriptAPI(query: string) {
