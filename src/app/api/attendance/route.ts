@@ -1,7 +1,7 @@
 // app/api/attendance/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
-// ⚙️ Executa no Edge (melhor cold start) e com duração maior (Vercel Functions v3)
+// ⚙️ Edge Runtime (melhor cold start) e mais tempo de execução
 export const runtime = 'edge';
 export const maxDuration = 30;
 
@@ -9,22 +9,74 @@ export const maxDuration = 30;
 const GOOGLE_SCRIPT_URL =
   'https://script.google.com/macros/s/AKfycbxtnvNZv_9QtrCez5tqm0OOKnNPnMMV-3jupEKgowySkqjRsvbPTr4YLiMhANfj83xP/exec';
 
-// ===== Utils de rede com timeout + retry =====
-async function sleep(ms: number) {
+// ========== Tipos ==========
+type RecordUnknown = Record<string, unknown>;
+
+type AbsenceDTO = {
+  className: string;
+  studentName: string;
+  attendanceValue: string; // esperado: 'F' (falta) ou '.'
+  date: string; // yyyy-mm-dd
+};
+
+type AttendanceEntry = {
+  studentName: string;
+  attendanceValue: string; // '.' ou 'F'
+  date: string; // yyyy-mm-dd
+};
+
+type UpdateStudentItem = {
+  studentName: string;
+  attendanceValue: string; // '.', 'F', etc.
+};
+
+type UpdateAttendanceRequestBody = {
+  action: 'updateAttendance';
+  className: string;
+  date: string; // yyyy-mm-dd
+  students: UpdateStudentItem[];
+};
+
+type UpdateAttendanceResponse = {
+  status?: string;
+  updatedStudents?: string[];
+  error?: string;
+};
+
+type FindStudentClassResponse = {
+  className: string | null;
+};
+
+// ========== Utils ==========
+function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-type Json = Record<string, any>;
+function toJSONString(obj: RecordUnknown): string {
+  return JSON.stringify(obj);
+}
 
-async function callGoogleScriptGET(queryObj: Json, attempt = 1): Promise<any> {
+function parseUnknownError(err: unknown): { message: string; isAbort: boolean } {
+  if (err instanceof Error) {
+    const msg = err.message ?? 'Unknown error';
+    const lower = msg.toLowerCase();
+    const isAbort =
+      err.name === 'AbortError' || lower.includes('aborted') || lower.includes('timeout');
+    return { message: msg, isAbort };
+  }
+  const str = typeof err === 'string' ? err : String(err);
+  const lower = str.toLowerCase();
+  const isAbort = lower.includes('aborted') || lower.includes('timeout');
+  return { message: str, isAbort };
+}
+
+// ========== HTTP helpers (genéricos, sem `any`) ==========
+async function callGoogleScriptGET<T>(queryObj: RecordUnknown, attempt = 1): Promise<T> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s por tentativa
+  const timeoutId = setTimeout(() => controller.abort(), 12_000); // 12s por tentativa
 
   try {
-    const url = `${GOOGLE_SCRIPT_URL}?query=${encodeURIComponent(
-      JSON.stringify(queryObj)
-    )}`;
-
+    const url = `${GOOGLE_SCRIPT_URL}?query=${encodeURIComponent(toJSONString(queryObj))}`;
     const res = await fetch(url, {
       signal: controller.signal,
       cache: 'no-store',
@@ -32,29 +84,29 @@ async function callGoogleScriptGET(queryObj: Json, attempt = 1): Promise<any> {
 
     if (!res.ok) {
       const body = await res.text();
-      // Retry para 429 e 5xx
       if ((res.status === 429 || res.status >= 500) && attempt < 3) {
         await sleep(300 * attempt);
-        return callGoogleScriptGET(queryObj, attempt + 1);
+        return callGoogleScriptGET<T>(queryObj, attempt + 1);
       }
       throw new Error(`Google Script error: ${res.status} ${res.statusText}: ${body}`);
     }
 
-    return await res.json();
+    // `res.json()` retorna `unknown` aqui; fazemos cast para T
+    return (await res.json()) as T;
   } finally {
     clearTimeout(timeoutId);
   }
 }
 
-async function callGoogleScriptPOST(payloadObj: Json, attempt = 1): Promise<any> {
+async function callGoogleScriptPOST<T>(payloadObj: RecordUnknown, attempt = 1): Promise<T> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000);
+  const timeoutId = setTimeout(() => controller.abort(), 12_000);
 
   try {
     const res = await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payloadObj),
+      body: toJSONString(payloadObj),
       signal: controller.signal,
       cache: 'no-store',
     });
@@ -63,33 +115,33 @@ async function callGoogleScriptPOST(payloadObj: Json, attempt = 1): Promise<any>
       const body = await res.text();
       if ((res.status === 429 || res.status >= 500) && attempt < 3) {
         await sleep(300 * attempt);
-        return callGoogleScriptPOST(payloadObj, attempt + 1);
+        return callGoogleScriptPOST<T>(payloadObj, attempt + 1);
       }
       throw new Error(`Google Script error: ${res.status} ${res.statusText}: ${body}`);
     }
 
-    return await res.json();
+    return (await res.json()) as T;
   } finally {
     clearTimeout(timeoutId);
   }
 }
 
-// (Opcional) tenta descobrir a turma pelo nome do aluno, se seu GAS tiver a action "findStudentClass"
+// (Opcional) Descobrir a turma pelo nome (se sua action existir no GAS)
 async function maybeFindStudentClass(studentName: string): Promise<string | null> {
   try {
-    const data = await callGoogleScriptGET({
+    const data = await callGoogleScriptGET<FindStudentClassResponse>({
       action: 'findStudentClass',
       studentName,
     });
     const cls = data?.className;
     if (typeof cls === 'string' && cls.trim()) return cls.trim();
   } catch {
-    // Se a action não existir ou falhar, seguimos sem turma
+    // silencioso: se não existir/der erro, seguimos sem turma
   }
   return null;
 }
 
-// ===== Handlers =====
+// ========== Handlers ==========
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const action = (searchParams.get('action') || '').trim();
@@ -107,8 +159,6 @@ export async function GET(req: NextRequest) {
           { status: 400 }
         );
       }
-
-      // Validação de ordem de datas
       if (new Date(startDate).getTime() > new Date(endDate).getTime()) {
         return NextResponse.json(
           { error: 'startDate cannot be after endDate' },
@@ -116,23 +166,22 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      // (Opcional) Descobre a turma automaticamente se só veio o nome
+      // tentar descobrir turma automaticamente (opcional)
       if (!className && studentName) {
         const found = await maybeFindStudentClass(studentName);
         if (found) className = found;
       }
 
-      // ✅ Uma única chamada ao GAS com o range inteiro
-      const query = {
+      const query: RecordUnknown = {
         action: 'getAbsences',
-        className,   // pode ser null → GAS varre todas as turmas (mais pesado)
+        className,
         startDate,
         endDate,
-        studentName, // pode ser null
+        studentName,
       };
 
-      const data = await callGoogleScriptGET(query);
-      return NextResponse.json(data, { status: 200 });
+      const data = await callGoogleScriptGET<AbsenceDTO[]>(query);
+      return NextResponse.json<AbsenceDTO[]>(data, { status: 200 });
     }
 
     if (action === 'getAttendance') {
@@ -146,37 +195,34 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      const query = { action: 'getAttendance', className, date };
-      const data = await callGoogleScriptGET(query);
-      return NextResponse.json(data, { status: 200 });
+      const query: RecordUnknown = { action: 'getAttendance', className, date };
+      const data = await callGoogleScriptGET<AttendanceEntry[]>(query);
+      return NextResponse.json<AttendanceEntry[]>(data, { status: 200 });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-  } catch (err: any) {
-    const isAbort =
-      err?.name === 'AbortError' ||
-      err?.message?.toLowerCase?.().includes('aborted') ||
-      err?.message?.toLowerCase?.().includes('timeout');
-
+  } catch (err: unknown) {
+    const { message, isAbort } = parseUnknownError(err);
+    // eslint-disable-next-line no-console
     console.error('GET /api/attendance error:', err);
     return NextResponse.json(
-      {
-        error: isAbort ? 'Upstream timeout' : err?.message || 'Unknown error',
-      },
+      { error: isAbort ? 'Upstream timeout' : message },
       { status: isAbort ? 504 : 500 }
     );
   }
 }
 
 export async function POST(req: NextRequest) {
-  let body: any;
+  let bodyUnknown: unknown;
   try {
-    body = await req.json();
+    bodyUnknown = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const action = (body?.action || '').trim();
+  // Narrow manual do corpo:
+  const body = bodyUnknown as Partial<UpdateAttendanceRequestBody>;
+  const action = (body?.action || '').trim() as string;
 
   try {
     if (action === 'updateAttendance') {
@@ -191,29 +237,39 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const payload = {
+      // validação básica do array
+      const validStudents: UpdateStudentItem[] = students
+        .map((s) => ({
+          studentName: typeof s?.studentName === 'string' ? s.studentName : '',
+          attendanceValue: typeof s?.attendanceValue === 'string' ? s.attendanceValue : '',
+        }))
+        .filter((s) => s.studentName && s.attendanceValue);
+
+      if (validStudents.length === 0) {
+        return NextResponse.json(
+          { error: 'students[] must contain at least one valid item' },
+          { status: 400 }
+        );
+      }
+
+      const payload: RecordUnknown = {
         action: 'updateAttendance',
         className,
         date,
-        students, // [{ studentName, attendanceValue }]
+        students: validStudents,
       };
 
-      const data = await callGoogleScriptPOST(payload);
-      return NextResponse.json(data, { status: 200 });
+      const data = await callGoogleScriptPOST<UpdateAttendanceResponse>(payload);
+      return NextResponse.json<UpdateAttendanceResponse>(data, { status: 200 });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-  } catch (err: any) {
-    const isAbort =
-      err?.name === 'AbortError' ||
-      err?.message?.toLowerCase?.().includes('aborted') ||
-      err?.message?.toLowerCase?.().includes('timeout');
-
+  } catch (err: unknown) {
+    const { message, isAbort } = parseUnknownError(err);
+    // eslint-disable-next-line no-console
     console.error('POST /api/attendance error:', err);
     return NextResponse.json(
-      {
-        error: isAbort ? 'Upstream timeout' : err?.message || 'Unknown error',
-      },
+      { error: isAbort ? 'Upstream timeout' : message },
       { status: isAbort ? 504 : 500 }
     );
   }
