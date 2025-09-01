@@ -47,11 +47,16 @@ const formatDate = (dateString: string) => {
 };
 
 // Função para remover acentos e converter para minúsculas
-const normalizeString = (str: string) => {
-  return str
-    ? str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-    : '';
+const normalizeString = (value: unknown) => {
+  const s = value == null ? '' : String(value);
+  try {
+    return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  } catch {
+    // fallback se normalize não existir
+    return s.toLowerCase();
+  }
 };
+
 
 // Defina a interface para os dados de ausência
 interface Absence {
@@ -81,20 +86,26 @@ function AbsenceTable() {
   };
 
   const fetchStudentOptions = async () => {
-    try {
-      const response = await axios.get('/api/getAlunos', {
-        params: {
-          className: selectedClass || undefined,
-        },
-      });
-      setStudentOptions(response.data);
+  try {
+    const response = await axios.get('/api/getAlunos', {
+      params: { className: selectedClass || undefined },
+    });
 
-      // Debugging: Log the list of students
-      console.log('Lista de alunos:', response.data);
-    } catch (error) {
-      console.error('Error fetching student options:', error);
-    }
-  };
+    const list = Array.isArray(response.data) ? response.data : [];
+
+    // Garante que tudo vire string
+    const onlyStrings = list.map((item: any) => {
+      if (typeof item === 'string') return item;
+      return item?.nome ?? item?.name ?? item?.label ?? String(item ?? '');
+    });
+
+    setStudentOptions(onlyStrings);
+    console.log('Lista de alunos (normalizada):', onlyStrings);
+  } catch (error) {
+    console.error('Error fetching student options:', error);
+  }
+};
+
 
   useEffect(() => {
     fetchStudentOptions();
@@ -253,23 +264,22 @@ function AbsenceTable() {
 
   {/* Campo de Pesquisa de Aluno */}
   <Grid item xs={12} md={3}>
-    <Autocomplete
-      freeSolo
-      options={studentOptions}
-      getOptionLabel={(option) => option}
-      value={searchTerm}
-      onChange={(event, newValue) => {
-        setSearchTerm(newValue);
-      }}
-      inputValue={inputValue}
-      onInputChange={(event, newInputValue) => {
-        setInputValue(newInputValue);
-      }}
-      filterOptions={filterOptions}
-      renderInput={(params) => (
-        <TextField {...params} label="Pesquisar Aluno" variant="outlined" />
-      )}
-    />
+   <Autocomplete
+  freeSolo
+  options={studentOptions} // agora garantidamente string[]
+  getOptionLabel={(option) => (typeof option === 'string' ? option : '')}
+  isOptionEqualToValue={(opt, val) => opt === val}
+  value={searchTerm}
+  onChange={(event, newValue) => setSearchTerm(typeof newValue === 'string' ? newValue : null)}
+  inputValue={inputValue}
+  onInputChange={(event, newInputValue) => setInputValue(newInputValue)}
+  filterOptions={(options, params) => {
+    const normalizedInput = normalizeString(params.inputValue);
+    return options.filter((opt) => normalizeString(opt).includes(normalizedInput));
+  }}
+  renderInput={(params) => <TextField {...params} label="Pesquisar Aluno" variant="outlined" />}
+/>
+
   </Grid>
 
   {/* Seleção de Dias da Semana */}
