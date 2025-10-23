@@ -7,7 +7,7 @@ export const maxDuration = 30;
 
 // URL do seu Google Apps Script
 const GOOGLE_SCRIPT_URL =
-  'https://script.google.com/macros/s/AKfycbwaFEil__0w_cuNCLj_aI-DMrzQbCftKCzw_JeXNYQ0qusYkMhXX0uokzYPmZINXNfp/exec';
+  'https://script.google.com/macros/s/AKfycbyXROAO61Xql_9dsbXFmlz5syF9UheXaVd-Uxbg8Xneu8LHrlCeProuudX7llZpspiG/exec';
 
 // ========== Tipos ==========
 type RecordUnknown = Record<string, unknown>;
